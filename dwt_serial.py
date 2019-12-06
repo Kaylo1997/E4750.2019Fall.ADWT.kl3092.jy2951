@@ -1,6 +1,6 @@
 import pywt
 import numpy as np
-
+import time
 
 def gen_wavelet():
     # Define the coefficients for the CDF9/7 filters
@@ -34,12 +34,20 @@ def gen_wavelet():
 
 
 def run_DWT(signal, wav, flag_print, mode='zero'):
+    tic = time.time()
     coeffs = pywt.dwt2(signal, wav, mode)
+    toc = time.time()
     cA, (cH, cV, cD) = coeffs
+    cA = cA.astype(np.float32)
+    cH = cH.astype(np.float32)
+    cV = cV.astype(np.float32)
+    cD = cD.astype(np.float32)
+
+    time_diff = toc - tic
     if flag_print:
         print("approx: {} \n detail: {} \n{}\n{}\n".format(cA, cH, cV, cD))
 
-    return cA, cH, cV, cD
+    return cA, cH, cV, cD, time_diff
 
 
 def run_iDWT(wav, cA, cH, cV, cD, mode):
