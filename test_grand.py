@@ -20,34 +20,32 @@ projdir = os.getcwd()
 imgs = []
 
 #for every image
-for i in range(750):
+for i in range(30):
     
     #decide which type of image (square, rect wide, rect tall) to load and load image into RGB components
-    if(i<250):
+    if(i<10):
         #square
         
         #get directory dimension value
-        dimdir = str(100*np.int32((i+1)/25+1))
+        dimdir = str(np.int32((i+1)*100))
         
         #load rgb matrix into list
         path = projdir+'/images/square/square'+dimdir+'/'
-        print(path)
         valid_images = [".jpg"]
         for f in os.listdir(path):
             ext = os.path.splitext(f)[1]
             #ignore non-image files
             if ext.lower() not in valid_images:
                 continue
-            print(os.path.join(path,f))
             #append image list
             cur_img =mpimg.imread(os.path.join(path,f))
             imgs.append(cur_img)
         
-    if 250 <= i and i < 500:
+    if 10 <= i and i < 20:
         #rect wide
                         
         #get directory dimension value
-        dimdir = str(100*np.int32(((i+1)-250)/25+1))
+        dimdir = str(np.int32((i+1-10)*100))
                         
         #load rgb matrix into list
         path = projdir+'/images/rect_wide/rect'+dimdir+'/'
@@ -61,11 +59,11 @@ for i in range(750):
             cur_img =mpimg.imread(os.path.join(path,f))
             imgs.append(cur_img)
         
-    if i >= 500:
+    if i >= 20:
         #rect tall
         
         #get directory dimension value
-        dimdir = str(100*np.int32(((i+1)-500)/25+1))
+        dimdir = str(np.int32((i+1-20)*100))
                         
         #load rgb matrix into list
         path = projdir+'/images/rect_tall/rect'+dimdir+'/'
@@ -78,9 +76,6 @@ for i in range(750):
             #append image list
             cur_img =mpimg.imread(os.path.join(path,f))
             imgs.append(cur_img)
-
-                        
-print len(imgs)
 
 # Define the coefficients for the CDF9/7 filters
 factor = 1
@@ -110,10 +105,10 @@ times_naive = [] # store the running time of the naive parallel algorithms
 sizes = [] # store sizes of images
 
 #for each image in our grand list
-for i in range 750:
+for i in range(750):
     
     #decompose image into RGB
-    rgb_cpu = imgs(i)
+    rgb_cpu = imgs[i]
     rsig = np.ascontiguousarray(rgb_cpu[:,:,0], dtype=np.float32)
     gsig = np.ascontiguousarray(rgb_cpu[:,:,1], dtype=np.float32)
     bsig = np.ascontiguousarray(rgb_cpu[:,:,2], dtype=np.float32)
@@ -142,18 +137,19 @@ for i in range 750:
 
     """
 
-    #implement naive version of 1D and 2D dwt
+    #implement naive separable version of 2D dwt
     dwt = DWT_naive()
     rh_cA, rh_cH, rh_cV, rh_cD, kernel_time_r = dwt.dwt_gpu_naive(rsig, filters)
     gh_cA, gh_cH, gh_cV, gh_cD, kernel_time_g = dwt.dwt_gpu_naive(gsig, filters)
     bh_cA, bh_cH, bh_cV, bh_cD, kernel_time_b = dwt.dwt_gpu_naive(bsig, filters)
 
-    #implement separable version of 1D and 2D dwt
+    #implement optimized separable version of 2D dwt
     # dwt_opt = DWT_optimized()
     # h_cAo, h_cHo, h_cVo, h_cDo, kernel_time_o = dwt_opt.dwt_gpu_optimized(signal,filters)
     
     #concatenate combine kernel execution times to get a final value for execution time across 2D dwts
     kernel_time = kernel_time_r + kernel_time_g + kernel_time_b
+    times_naive.append(kernel_time)
 
     #print outputs and timing results
     print('Parallel same as serial rc_A: {}'.format(np.allclose(rcA, rh_cA, atol=5e-7)))
@@ -185,3 +181,4 @@ plt.plot(sizes, times_serial, label='Serial')
 plt.xlabel('size')
 plt.ylabel('run time/s')
 plt.legend(loc='upper right')
+plt.savefig('execution_times.png')
