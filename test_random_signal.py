@@ -4,6 +4,7 @@
 import numpy as np
 from dwt_serial import *
 from dwt_naive_parallel import *
+from dwt_optimized_parallel import *
 
 """
 1. Test serial with some random array
@@ -18,7 +19,6 @@ cA, cH, cV, cD, serial_time = run_DWT(signal, wav, False, mode='zero')
 
 """
 2. Test parallel with some random array
-
 """
 
 # Define the coefficients for the CDF9/7 filters
@@ -47,10 +47,25 @@ filters = np.vstack((cdf97_an_lo, cdf97_an_hi, cdf97_syn_lo, cdf97_syn_hi)).asty
 dwt = DWT_naive()
 h_cA, h_cH, h_cV, h_cD, kernel_time = dwt.dwt_gpu_naive(signal, filters)
 
-print('Parallel same as serial c_A: {}'.format(np.allclose(cA, h_cA, atol=5e-7)))
-print('Parallel same as serial c_H: {}'.format(np.allclose(cH, h_cH, atol=5e-7)))
-print('Parallel same as serial c_V: {}'.format(np.allclose(cV, h_cV, atol=5e-7)))
-print('Parallel same as serial c_D: {}'.format(np.allclose(cD, h_cD, atol=5e-7)))
+#implement optimized separable version of 2D dwt
+dwt_opt = DWT_optimized()
+h_cAo, h_cHo, h_cVo, h_cDo, kernel_time_o = dwt_opt.dwt_gpu_optimized(signal,filters)
+
+print('naive same as serial c_A: {}'.format(np.allclose(cA, h_cA, atol=5e-7)))
+print('naive same as serial c_H: {}'.format(np.allclose(cH, h_cH, atol=5e-7)))
+print('naive same as serial c_V: {}'.format(np.allclose(cV, h_cV, atol=5e-7)))
+print('naive same as serial c_D: {}'.format(np.allclose(cD, h_cD, atol=5e-7)))
+
+print('optimized same as serial c_A: {}'.format(np.allclose(h_cA, h_cAo, atol=5e-7)))
+print('optimized same as serial c_Hs: {}'.format(np.allclose(h_cH, h_cHo, atol=5e-7)))
+print('optimized same as serial c_Vs: {}'.format(np.allclose(h_cV, h_cVo, atol=5e-7)))
+print('optimized same as serial c_Ds: {}'.format(np.allclose(h_cD, h_cDo, atol=5e-7)))
+
+print(h_cA).shape[0]
+
+print(h_cA)
+print("------------------------------")
+print(h_cHo)
 
 print('\nSerial time: {}'.format(serial_time))
 print('Parallel time: {}'.format(kernel_time))
