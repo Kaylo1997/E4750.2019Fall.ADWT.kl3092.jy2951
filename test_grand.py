@@ -103,12 +103,14 @@ filters = np.vstack((cdf97_an_lo, cdf97_an_hi, cdf97_syn_lo, cdf97_syn_hi)).asty
 times_serial = [] # store the running time of the serial algorithm
 times_naive = [] # store the running time of the naive parallel algorithms
 sizes = [] # store sizes of images
+temp_s = 0
+temp_naive = 0 #temp execution time variables before getting the average execution time for each matrix size
 
 #for each image in our grand list
 for i in range(750):
     
     #decompose image into RGB
-    rgb_cpu = imgs[i]
+    rgb_cpu = imgs[i]/255
     rsig = np.ascontiguousarray(rgb_cpu[:,:,0], dtype=np.float32)
     gsig = np.ascontiguousarray(rgb_cpu[:,:,1], dtype=np.float32)
     bsig = np.ascontiguousarray(rgb_cpu[:,:,2], dtype=np.float32)
@@ -125,12 +127,15 @@ for i in range(750):
     gcA, gcH, gcV, gcD, serial_time_g = run_DWT(gsig, wav, False, mode='zero')
     bcA, bcH, bcV, bcD, serial_time_b = run_DWT(bsig, wav, False, mode='zero')
     
-    #concatenate combine serial execution times to get a final value for execution time across 2D dwts
+    #concatenate combine serial execution times to get a final average value for execution time across 2D dwts
     serial_time = serial_time_r + serial_time_g + serial_time_b
+    temp_s = temp_s + serial_time
     
-    #append arrays holding serial times and size results
-    times_serial.append(serial_time)
-    sizes.append(size)
+    if(np.mod((i+1),25)==0):
+        #append arrays holding serial times and size results
+        times_serial.append(temp_s/25)
+        sizes.append(size)
+        temp_s = 0
 
     """
     2. Test parallel with some random array
@@ -147,9 +152,12 @@ for i in range(750):
     # dwt_opt = DWT_optimized()
     # h_cAo, h_cHo, h_cVo, h_cDo, kernel_time_o = dwt_opt.dwt_gpu_optimized(signal,filters)
     
-    #concatenate combine kernel execution times to get a final value for execution time across 2D dwts
+    #concatenate combine kernel execution times to get a final average value for execution time across 2D dwts
     kernel_time = kernel_time_r + kernel_time_g + kernel_time_b
-    times_naive.append(kernel_time)
+    temp_naive = temp_naive + kernel_time
+    if(np.mod((i+1),25)==0):
+        times_naive.append(temp_naive/25)
+        temp_naive = 0
 
     #print outputs and timing results
     print('Parallel same as serial rc_A: {}'.format(np.allclose(rcA, rh_cA, atol=5e-7)))
