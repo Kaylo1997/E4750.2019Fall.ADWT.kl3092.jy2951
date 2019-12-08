@@ -263,7 +263,7 @@ class DWT_optimized:
             srcY = blockIdx.y * 25 + destY - radius;
             srcX = blockIdx.x * 16 + destX - radius; //same TODO as before
             src = srcY * W + srcX;
-            if (destY < W) {
+            if (destY < 16) {
                 if (srcY >= 0 && srcY < H && srcX >= 0 && srcX < W) {
                     ds_tmp_a1[destY][destX] = tmp_a1[src];
                     ds_tmp_a2[destY][destX] = tmp_a2[src];
@@ -353,13 +353,10 @@ class DWT_optimized:
 
         # Set the width of the block
         BLOCK_WIDTH = 16
-        BLOCK_WIDTH_X_OPT = 25
 
         # Calculate the number of blocks
         # Note that final output has shape (M, N)
-        # Note block width x for optomized version same as shared memory size
         BLOCK_X = int(np.ceil(dim_C / float(BLOCK_WIDTH)))
-        BLOCK_X_OPT = int(np.ceil(dim_C / float(BLOCK_WIDTH_X_OPT)))
         BLOCK_Y1 = int(np.ceil(dim_M / float(BLOCK_WIDTH)))
         BLOCK_Y2 = int(np.ceil(dim_R / float(BLOCK_WIDTH)))
 
@@ -406,7 +403,7 @@ class DWT_optimized:
         dwt_forward1_optimized(d_input, d_tmp_a1, d_tmp_a2, d_filter_lo, d_filter_hi,
                            block=(BLOCK_WIDTH, BLOCK_WIDTH, 1), grid=(BLOCK_X, BLOCK_Y1, 1))
         dwt_forward2_optimized(d_tmp_a1, d_tmp_a2, d_cA, d_cH, d_cV, d_cD, d_filter_lo, d_filter_hi, np.int32(dim_N), np.int32(dim_M), np.int32(maskwidth),
-                           block=(BLOCK_WIDTH_X_OPT, BLOCK_WIDTH, 1), grid=(BLOCK_X_OPT, BLOCK_Y2, 1))
+                           block=(BLOCK_WIDTH, BLOCK_WIDTH, 1), grid=(BLOCK_X, BLOCK_Y2, 1))
         toc.record()
         toc.synchronize()
 
