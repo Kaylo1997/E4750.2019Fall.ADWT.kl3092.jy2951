@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import pycuda.autoinit
 plt.ioff()
 
-class DWT_optimized:
+class DWT_optimized_shared_mem:
     def __init__(self):
         # Grid size should be (ceil((N + maskwidth - 1)/2), M) for input image shape (M, N) to avoid wasting threads
         # and to make indexing work
@@ -23,69 +23,76 @@ class DWT_optimized:
             // float* tmp_a2: subband 2 subject to second forward pass
             // float* filter_lo: LPF coefficients for approximation of shape (hlen,)
             // float* filter_hi: HPF coefficients for detail of shape (hlen,)
-              
-            int Row = threadIdx.y + blockIdx.y*blockDim.y;
-            int Col = threadIdx.x + blockIdx.x*blockDim.x;
+            
+            // Obtain the thread idx along the rows and columns
+            int ty = threadIdx.y;
+            int tx = threadIdx.x;
             
             // Obtain the dimension of the problem
             // size of the mask, width and height of input image
             // int maskwidth: length of the filter (default is 10 for CDF9/7)
+            // int O_TILE_WIDTH: length of the output tile per block
             // int H: number of rows for input (height) (equals to M)
             // int W: number of columns for input (width) (equals to N)
-            int maskwidth = %(M)s;
             int H = %(H)s;
             int W = %(W)s;
+            #define O_TILE_WIDTH %(T)s
+            #define maskwidth %(M)s
 
+            int Row = threadIdx.y + blockIdx.y*blockDim.y;
+            int Col_o = threadIdx.x + blockIdx.x*O_TILE_WIDTH;
+            int Col_i = threadIdx.x + blockIdx.x*blockDim.x - (maskwidth - 2) * (1 + blockIdx.x);
+
+            
+            // Define the shared memory variable
+            __shared__ float ds_in [2 * (O_TILE_WIDTH - 1) + maskwidth][2 * (O_TILE_WIDTH - 1) + maskwidth];
+            
             // Obtain half of the width
-            // int flag_W_odd = (W & 1);
-            // int W_half = (W + flag_W_odd)/2;
             int W_half = (W + maskwidth - 1)/2;
             
-            // Perform vertical downsampling by half (separable method for DWT)
-            // Output is of shape (M, ceil((N + maskwidth - 1)/2))
-            if (Row < H && Col < W_half){
-                // c: center of filter
-                // hL: number of filter elements to the left of center
-                // hR: number of filter elements to the right of center
-                int c;
-                
-                if (maskwidth & 1) { 
+            // Obtain c: center of filter
+            int c;
+            if (maskwidth & 1) { 
                 // odd kernel size
-                    c = maskwidth/2;
-                    // int hL = c;
-                    // int hR = c;
+                c = maskwidth/2;
                 }
-                else { 
+            else { 
                 // even kernel size : center is shifted to the left
-                    c = maskwidth/2 + 3;
-                    // int hL = c + 2;
-                    // int hR = c - 1;
-                }
-                
-                // 1D Convolution with zeropadding boundary constraints
-                // Convolution is performed along each row
-                float res_tmp_a1 = 0, res_tmp_a2 = 0;
-                
-                // Note the downsampling via multiplication with 2
-                int N_start_col = Col * 2 - c;
-                
+                c = maskwidth/2 - 1 + (maskwidth - 2)/2;
+            }
+            
+            if ((Col_i > -1) && (Col_i < W)){
+                ds_in[ty][tx] = input[Row * W + Col_i];
+            }
+            else{
+                ds_in[ty][tx] = 0.0f;
+            }
+            
+            // Wait for all the threads to load data into shared memory
+            __syncthreads();
+            
+            float res_tmp_a1 = 0, res_tmp_a2 = 0;
+            if ((ty < 2 * (O_TILE_WIDTH - 1) + maskwidth) && (tx < O_TILE_WIDTH)){
                 for (int j = 0; j < maskwidth; j++) {
-                    int curCol = N_start_col + j;
                     int kerIdx = maskwidth - j - 1;
-                    
-                    // Apply the zero-padding via the conditional
-                    if ((curCol > -1) && (curCol < W)){
-                        // Perform the convolution with both filters
-                        res_tmp_a1 += input[Row * W + curCol] * filter_lo[kerIdx];
-                        res_tmp_a2 += input[Row * W + curCol] * filter_hi[kerIdx];
-                    }
+
+                    // 1D Convolution with zeropadding boundary constraints
+                    // Convolution is performed along each row
+
+                    // Perform the convolution with both filters
+                    res_tmp_a1 += ds_in[ty][2 * tx + j] * filter_lo[kerIdx];
+                    res_tmp_a2 += ds_in[ty][2 * tx + j] * filter_hi[kerIdx];
                 }
                 
-                tmp_a1[Row * W_half + Col] = res_tmp_a1;
-                tmp_a2[Row * W_half + Col] = res_tmp_a2;
+                if ((Row < H) && (Col_o < W_half)){
+                    tmp_a1[Row * W_half + Col_o] = res_tmp_a1;
+                    tmp_a2[Row * W_half + Col_o] = res_tmp_a2;
+                }
             }
         }
         """
+
+
 
 #         self.dwt_forward1_opt = """
 #         __global__ void w_kernel_forward1(float* input, float* tmp_a1, float* tmp_a2, float* filter_lo, float* filter_hi){
@@ -324,9 +331,6 @@ class DWT_optimized:
                 c_d[Row * W_half + Col] = res_d;
             }
             
-            //call synchreads, control divergence maximum complexity of O(4*maskwidth + ~20)
-            __syncthreads();
-            
         }
         """
 
@@ -348,10 +352,11 @@ class DWT_optimized:
 
         # Set the width of the block
         BLOCK_WIDTH = 16
+        O_TILE_WIDTH = (BLOCK_WIDTH - maskwidth)/2 + 1
 
         # Calculate the number of blocks
         # Note that final output has shape (M, N)
-        BLOCK_X = int(np.ceil(dim_C / float(BLOCK_WIDTH)))
+        BLOCK_X = 2 * int(np.ceil(dim_C / float(O_TILE_WIDTH)))
         BLOCK_Y1 = int(np.ceil(dim_M / float(BLOCK_WIDTH)))
         BLOCK_Y2 = int(np.ceil(dim_R / float(BLOCK_WIDTH)))
 
@@ -380,6 +385,7 @@ class DWT_optimized:
         # Call kernel
         dwt_forward1_optimized_kernel = self.dwt_forward1_opt % {
             'M': maskwidth,
+            'T': O_TILE_WIDTH,
             'H': dim_M,
             'W': dim_N
         }
@@ -397,15 +403,19 @@ class DWT_optimized:
         tic.record()
         dwt_forward1_optimized(d_input, d_tmp_a1, d_tmp_a2, d_filter_lo, d_filter_hi,
                            block=(BLOCK_WIDTH, BLOCK_WIDTH, 1), grid=(BLOCK_X, BLOCK_Y1, 1))
-        dwt_forward2_optimized(d_tmp_a1, d_tmp_a2, d_cA, d_cH, d_cV, d_cD, d_filter_lo, d_filter_hi, np.int32(dim_N), np.int32(dim_M), np.int32(maskwidth),
-                           block=(BLOCK_WIDTH, BLOCK_WIDTH, 1), grid=(BLOCK_X, BLOCK_Y2, 1))
+        # dwt_forward2_optimized(d_tmp_a1, d_tmp_a2, d_cA, d_cH, d_cV, d_cD, d_filter_lo, d_filter_hi, np.int32(dim_N), np.int32(dim_M), np.int32(maskwidth),
+        #                    block=(BLOCK_WIDTH, BLOCK_WIDTH, 1), grid=(BLOCK_X, BLOCK_Y2, 1))
         toc.record()
         toc.synchronize()
 
         kernel_time = tic.time_till(toc)*1e-3
+
+        h_tmp_a1 = d_tmp_a1.get()
+        h_tmp_a2 = d_tmp_a2.get()
+
         h_cA = d_cA.get()
         h_cH = d_cH.get()
         h_cV = d_cV.get()
         h_cD = d_cD.get()
 
-        return h_cA, h_cH, h_cV, h_cD, kernel_time
+        return h_tmp_a1, h_tmp_a2, kernel_time
