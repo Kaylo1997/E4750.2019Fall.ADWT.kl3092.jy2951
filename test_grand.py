@@ -6,6 +6,7 @@ import time
 import math
 from dwt_serial import *
 from dwt_naive_parallel import *
+from dwt_optimized_parallel import *
 import os, os.path
 import matplotlib.image as mpimg
 
@@ -105,6 +106,8 @@ times_naive = [] # store the running time of the naive parallel algorithms
 sizes = [] # store sizes of images
 temp_s = 0
 temp_naive = 0 #temp execution time variables before getting the average execution time for each matrix size
+temp_o = 0
+times_opt = []
 
 #for each image in our grand list
 for i in range(750):
@@ -149,42 +152,57 @@ for i in range(750):
     bh_cA, bh_cH, bh_cV, bh_cD, kernel_time_b = dwt.dwt_gpu_naive(bsig, filters)
 
     #implement optimized separable version of 2D dwt
-    # dwt_opt = DWT_optimized()
-    # h_cAo, h_cHo, h_cVo, h_cDo, kernel_time_o = dwt_opt.dwt_gpu_optimized(signal,filters)
+    dwt_opt = DWT_optimized()
+    rh_cAo, rh_cHo, rh_cVo, rh_cDo, kernel_time_or = dwt_opt.dwt_gpu_optimized(rsig,filters)
+    gh_cAo, gh_cHo, gh_cVo, gh_cDo, kernel_time_og = dwt_opt.dwt_gpu_optimized(gsig,filters)
+    bh_cAo, bh_cHo, bh_cVo, bh_cDo, kernel_time_ob = dwt_opt.dwt_gpu_optimized(bsig,filters)
     
     #concatenate combine kernel execution times to get a final average value for execution time across 2D dwts
     kernel_time = kernel_time_r + kernel_time_g + kernel_time_b
     temp_naive = temp_naive + kernel_time
+    kernel_time_o = kernel_time_or + kernel_time_og + kernel_time_ob
+    temp_o = temp_o + kernel_time_o
     if(np.mod((i+1),25)==0):
         times_naive.append(temp_naive/25)
+        times_opt.append(temp_o/25)
         temp_naive = 0
+        temp_o = 0
 
     #print outputs and timing results
-    print('Parallel same as serial rc_A: {}'.format(np.allclose(rcA, rh_cA, atol=5e-7)))
-    print('Parallel same as serial rc_H: {}'.format(np.allclose(rcH, rh_cH, atol=5e-7)))
-    print('Parallel same as serial rc_V: {}'.format(np.allclose(rcV, rh_cV, atol=5e-7)))
-    print('Parallel same as serial rc_D: {}'.format(np.allclose(rcD, rh_cD, atol=5e-7)))
-    print('Parallel same as serial gc_A: {}'.format(np.allclose(gcA, gh_cA, atol=5e-7)))
-    print('Parallel same as serial gc_H: {}'.format(np.allclose(gcH, gh_cH, atol=5e-7)))
-    print('Parallel same as serial gc_V: {}'.format(np.allclose(gcV, gh_cV, atol=5e-7)))
-    print('Parallel same as serial gc_D: {}'.format(np.allclose(gcD, gh_cD, atol=5e-7)))
-    print('Parallel same as serial bc_A: {}'.format(np.allclose(bcA, bh_cA, atol=5e-7)))
-    print('Parallel same as serial bc_H: {}'.format(np.allclose(bcH, bh_cH, atol=5e-7)))
-    print('Parallel same as serial bc_V: {}'.format(np.allclose(bcV, bh_cV, atol=5e-7)))
-    print('Parallel same as serial bc_D: {}'.format(np.allclose(bcD, bh_cD, atol=5e-7)))
+    print('naive same as serial rc_A: {}'.format(np.allclose(rcA, rh_cA, atol=5e-7)))
+    print('naive same as serial rc_H: {}'.format(np.allclose(rcH, rh_cH, atol=5e-7)))
+    print('naive same as serial rc_V: {}'.format(np.allclose(rcV, rh_cV, atol=5e-7)))
+    print('naive same as serial rc_D: {}'.format(np.allclose(rcD, rh_cD, atol=5e-7)))
+    print('naive same as serial gc_A: {}'.format(np.allclose(gcA, gh_cA, atol=5e-7)))
+    print('naive same as serial gc_H: {}'.format(np.allclose(gcH, gh_cH, atol=5e-7)))
+    print('naive same as serial gc_V: {}'.format(np.allclose(gcV, gh_cV, atol=5e-7)))
+    print('naive same as serial gc_D: {}'.format(np.allclose(gcD, gh_cD, atol=5e-7)))
+    print('naive same as serial bc_A: {}'.format(np.allclose(bcA, bh_cA, atol=5e-7)))
+    print('naive same as serial bc_H: {}'.format(np.allclose(bcH, bh_cH, atol=5e-7)))
+    print('naive same as serial bc_V: {}'.format(np.allclose(bcV, bh_cV, atol=5e-7)))
+    print('naive same as serial bc_D: {}'.format(np.allclose(bcD, bh_cD, atol=5e-7)))
     
-    # print('Optimized and Naive equivalency for c_As: {}'.format(np.allclose(h_cA, h_cAo, atol=5e-7)))
-    # print('Optimized and Naive equivalency for c_Hs: {}'.format(np.allclose(h_cH, h_cHo, atol=5e-7)))
-    # print('Optimized and Naive equivalency for c_Vs: {}'.format(np.allclose(h_cV, h_cVo, atol=5e-7)))
-    # print('Optimized and Naive equivalency for c_Ds: {}'.format(np.allclose(h_cD, h_cDso, atol=5e-7)))
+    print('optimized same as serial rc_A: {}'.format(np.allclose(rcA, rh_cAo, atol=5e-7)))
+    print('optimized same as serial rc_H: {}'.format(np.allclose(rcH, rh_cHo, atol=5e-7)))
+    print('optimized same as serial rc_V: {}'.format(np.allclose(rcV, rh_cVo, atol=5e-7)))
+    print('optimized same as serial rc_D: {}'.format(np.allclose(rcD, rh_cDo, atol=5e-7)))
+    print('optimized same as serial gc_A: {}'.format(np.allclose(gcA, gh_cAo, atol=5e-7)))
+    print('optimized same as serial gc_H: {}'.format(np.allclose(gcH, gh_cHo, atol=5e-7)))
+    print('optimized same as serial gc_V: {}'.format(np.allclose(gcV, gh_cVo, atol=5e-7)))
+    print('optimized same as serial gc_D: {}'.format(np.allclose(gcD, gh_cDo, atol=5e-7)))
+    print('optimized same as serial bc_A: {}'.format(np.allclose(bcA, bh_cAo, atol=5e-7)))
+    print('optimized same as serial bc_H: {}'.format(np.allclose(bcH, bh_cHo, atol=5e-7)))
+    print('optimized same as serial bc_V: {}'.format(np.allclose(bcV, bh_cVo, atol=5e-7)))
+    print('optimized same as serial bc_D: {}'.format(np.allclose(bcD, bh_cDo, atol=5e-7)))
 
     print('\nSerial time: {}'.format(serial_time))
     print('Naive time: {}'.format(kernel_time))
-    #print('Optimized time time: {}'.format(kernel_time_o))
+    print('Optimized time time: {}'.format(kernel_time_o))
     
 plt.figure()
 plt.title('Execution Time Comparison Graph')
 plt.plot(sizes, times_naive, label='Naive')
+plt.plot(sizes, times_opt, label='Optimized')
 plt.plot(sizes, times_serial, label='Serial')
 plt.xlabel('size')
 plt.ylabel('run time/s')
