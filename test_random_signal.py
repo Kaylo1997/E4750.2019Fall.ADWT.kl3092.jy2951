@@ -56,16 +56,12 @@ print('naive same as serial c_H: {}'.format(np.allclose(cH, h_cH, atol=5e-7)))
 print('naive same as serial c_V: {}'.format(np.allclose(cV, h_cV, atol=5e-7)))
 print('naive same as serial c_D: {}'.format(np.allclose(cD, h_cD, atol=5e-7)))
 
-print('optimized same as serial c_A: {}'.format(np.allclose(h_cA, h_cAo, atol=5e-7)))
-print('optimized same as serial c_Hs: {}'.format(np.allclose(h_cH, h_cHo, atol=5e-7)))
-print('optimized same as serial c_Vs: {}'.format(np.allclose(h_cV, h_cVo, atol=5e-7)))
-print('optimized same as serial c_Ds: {}'.format(np.allclose(h_cD, h_cDo, atol=5e-7)))
+print('optimized same as serial c_A: {}'.format(np.allclose(cA, h_cAo, atol=5e-7)))
+print('optimized same as serial c_H: {}'.format(np.allclose(cH, h_cHo, atol=5e-7)))
+print('optimized same as serial c_V: {}'.format(np.allclose(cV, h_cVo, atol=5e-7)))
+print('optimized same as serial c_D: {}'.format(np.allclose(cD, h_cDo, atol=5e-7)))
 
-print(h_cA).shape[0]
 
-print(h_cA)
-print("------------------------------")
-print(h_cHo)
 
 print('\nSerial time: {}'.format(serial_time))
 print('Parallel time: {}'.format(kernel_time))
