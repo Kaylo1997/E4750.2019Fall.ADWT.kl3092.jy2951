@@ -224,26 +224,36 @@ class DWT_optimized:
             //row-major row column format
             int Row = threadIdx.y + blockIdx.y*blockDim.y;
             int Col = threadIdx.x + blockIdx.x*blockDim.x;
+            int block = 16;
 
             // Obtain the dimension of the problem
             // size of the mask, width and height of input image
             // int maskwidth: length of the filter (default is 10 for CDF9/7)
             // int H: number of rows for input (height) (equals to M)
             // int W: number of columns for input (width) (equals to N)
+            // int radius: half of maskwidth (different depending on kernel size)
 
             // Obtain half of the width
             int H_half = (H + maskwidth - 1)/2;
             int W_half = (W + maskwidth - 1)/2;
-            
-            //load tmp a1 and a2 into shared memory
             int radius = maskwidth/2;
-            int dest = threadIdx.y * 25 + threadIdx.x; //1D index for destination idx of shared mem
+            
+            //if our kernel size is even, adjust the radius
+            if (!(maskwidth & 1)) { 
+                radius = maskwidth/2+3;
+            }
+            
+            //destination indicies for shared memory
+            int dest = threadIdx.y * block + threadIdx.x;
             int destY = dest / 25;
-            int destX = dest % 16; //Get the destination x/y indicies
-            int srcY = blockIdx.y * 16 + destY - radius;
-            int srcX = blockIdx.x * 25 + destX - radius; //TODO: check this logic for scrY/scrX; confident dest idxs are correct
+            int destX = dest % 16;
+            
+            //source indicies for shared memory
+            int srcY = blockIdx.y * block + destY;
+            int srcX = blockIdx.x * block + destX - radius;
             int src = srcY * W + srcX;
             
+            //load tmp a1 and a2 into shared memory
             //only load the subbands into shared memory if boundary conditions are satisfied
             if (srcY >= 0 && srcY < H && srcX >= 0 && srcX < W)
             {
@@ -256,13 +266,17 @@ class DWT_optimized:
                     ds_tmp_a2[destY][destX] = 0;
             }
 
-            //perorm second batch loading of subband arrays; again only if boundary conditions are satisfied
-            dest = threadIdx.y * 25 + threadIdx.x + 25 * 16; //1D index for destination idx of shared mem
+            //destination indicies for shared memory
+            dest = threadIdx.y * block + threadIdx.x;
             destY = dest / 25;
-            destX = dest % 16; //Get the destination x/y indicies
-            srcY = blockIdx.y * 25 + destY - radius;
-            srcX = blockIdx.x * 16 + destX - radius; //same TODO as before
+            destX = dest % 16;
+            
+            //source indicies for shared memory
+            srcY = blockIdx.y * block + destY;
+            srcX = blockIdx.x * block + destX - radius;
             src = srcY * W + srcX;
+            
+            //perform second batch loading of subband arrays; again only if boundary conditions are satisfied
             if (destY < 16) {
                 if (srcY >= 0 && srcY < H && srcX >= 0 && srcX < W) {
                     ds_tmp_a1[destY][destX] = tmp_a1[src];
@@ -276,53 +290,34 @@ class DWT_optimized:
             //synchronize all threads such that tiles are loaded correctly
             __syncthreads();
             
-            //zero padding boundary conditions for 1D convoluton
-            float res_a = 0, res_h = 0, res_v = 0, res_d = 0;
-            
-            
-            // c: center of filter
-            // hL: number of filter elements to the left of center
-            // hR: number of filter elements to the right of center
-            int c;
-            // Perform horizontal downsampling by half (separable method for DWT)
-            // Output is of shape (ceil((M + maskwidth - 1)/2), ceil((N + maskwidth - 1)/2))
+            // boundary cond. of output of shape (ceil((M + maskwidth - 1)/2), ceil((N + maskwidth - 1)/2))
             if (Row < H_half && Col < W_half){
+            
+                //zero padding boundary conditions for 1D convoluton
+                float res_a = 0, res_h = 0, res_v = 0, res_d = 0;
                 
-                if (maskwidth & 1) { 
-                // odd kernel size
-                    c = maskwidth/2;
-                    // hL = c;
-                    // hR = c;
-                }
-                else { 
-                // even kernel size : center is shifted to the left
-                    c = maskwidth/2 + 3;
-                    // hL = c;
-                    // hR = c + 1;
-                }
-            }
-            
-            if (Row < H_half && Col < W_half){
                 //Perform 1D convolution with zero padding, but store output arrays into shared memory
                 for (int x = 0; x < maskwidth; x++) {
-                    int curRow = Row * 2 - c + x;
-                    int kerIdx = maskwidth - x - 1;
-                    // Apply the zero-padding via the conditional
-                    if ((curRow > -1) && (curRow < H)){
+                
+                    int tx = threadIdx.x+x; // never exceeds 24 = 25-1
+                    int ty = threadIdx.y; // never exceeds 15 = 16-1
+                    int kerIdx = maskwidth - x - 1; //gets index for convolution
+                    
+                    // Apply the zero-padding via conditional for shared memory
+                    if ( tx < 25 && ty < 16 ){
+                    
                         // Perform the convolution with both filters
-                     
                         //Index the normal y dimension block size but for x, take into account
                         //the convolution operation (max x dim = 16+9 = 25 -> max index 24)
-                        res_a += ds_tmp_a1[threadIdx.y][threadIdx.x+x] * filter_lo[kerIdx];
-                        res_h += ds_tmp_a1[threadIdx.y][threadIdx.x+x] * filter_hi[kerIdx];
-                        res_v += ds_tmp_a2[threadIdx.y][threadIdx.x+x] * filter_lo[kerIdx];
-                        res_d += ds_tmp_a2[threadIdx.y][threadIdx.x+x] * filter_hi[kerIdx];
+                        res_a += ds_tmp_a1[ty][tx] * filter_lo[kerIdx];
+                        res_h += ds_tmp_a1[ty][tx] * filter_hi[kerIdx];
+                        res_v += ds_tmp_a2[ty][tx] * filter_lo[kerIdx];
+                        res_d += ds_tmp_a2[ty][tx] * filter_hi[kerIdx];
+                        
                     }
                 }
-           }
-
-            //output filter coeffecients as result of convolution
-            if (Row < H && Col < W){
+                
+                //output our convolution results into coeffecient matrix
                 c_a[Row * W_half + Col] = res_a;
                 c_h[Row * W_half + Col] = res_h;
                 c_v[Row * W_half + Col] = res_v;
