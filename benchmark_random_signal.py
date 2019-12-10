@@ -10,12 +10,19 @@ import matplotlib.pyplot as plt
 """
 Parameters to experiment with
 """
-BLOCK_WIDTH = 32
+BLOCK_WIDTH = 16
 M = 100
-N = 100
+N = 50
 L_max = 50
-f_name_full = 'Benchmark_BlockSize{}_Random.png'.format(BLOCK_WIDTH)
-f_name_parallel = 'Benchmark_Parallel_BlockSize{}_Random.png'.format(BLOCK_WIDTH)
+if M == N:
+    shape = 'Square'
+    shape_caps = 'SQUARE'
+else:
+    shape = 'Rectangle'
+    shape_caps = 'RECTANGLE'
+
+f_name_full = 'Benchmark_BlockSize{}_{}_Random.png'.format(BLOCK_WIDTH, shape)
+f_name_parallel = 'Benchmark_Parallel_BlockSize{}_{}_Random.png'.format(BLOCK_WIDTH, shape)
 
 """
 Setup
@@ -111,7 +118,7 @@ for L in np.arange(1, L_max + 1, 1):
 
 plt.figure()
 n_iter = np.arange(1, L_max + 1, 1)
-plt.title('Serial vs Parallel\nBLOCK WIDTH: {}, BASE SIZE: ({},{}), SQUARE MATRICES'.format(BLOCK_WIDTH, M, N))
+plt.title('Serial vs Parallel\nBLOCK WIDTH: {}, BASE SIZE: ({},{}), {} MATRICES'.format(BLOCK_WIDTH, M, N, shape_caps))
 plt.plot(n_iter, vec_serial_time, label='Serial')
 plt.plot(n_iter, vec_kernel_time, label='Naive Parallel')
 plt.plot(n_iter, vec_kernel_time_tiled, label='Tiled Parallel')
@@ -123,7 +130,7 @@ plt.savefig(str(outputpath_full))
 
 plt.figure()
 n_iter = np.arange(1, L_max + 1, 1)
-plt.title('Parallel Only\nBLOCK WIDTH: {}, BASE SIZE: ({},{}), SQUARE MATRICES'.format(BLOCK_WIDTH, M, N))
+plt.title('Parallel Only\nBLOCK WIDTH: {}, BASE SIZE: ({},{}), {} MATRICES'.format(BLOCK_WIDTH, M, N, shape_caps))
 plt.plot(n_iter, vec_kernel_time, label='Naive Parallel')
 plt.plot(n_iter, vec_kernel_time_tiled, label='Tiled Parallel')
 plt.plot(n_iter, vec_kernel_time_separable, label='Separable Parallel')
