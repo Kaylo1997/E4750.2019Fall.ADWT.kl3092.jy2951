@@ -13,7 +13,7 @@ BLOCK_WIDTH = 32
 """
 1. Test serial with some random array
 """
-signal = np.random.rand(10000, 10000).astype(np.float32)
+signal = np.random.rand(4000, 4000).astype(np.float32)
 
 wav = gen_wavelet()
 cA, cH, cV, cD, serial_time = run_DWT(signal, wav, False, mode='zero')

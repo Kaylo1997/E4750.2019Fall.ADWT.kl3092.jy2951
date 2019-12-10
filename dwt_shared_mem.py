@@ -16,7 +16,7 @@ class DWT_optimized_shared_mem:
         # and to make indexing work
         
         self.dwt_forward1_opt= """
-        __global__ void w_kernel_forward1(float* input, float* tmp_a1, float* tmp_a2, float* filter_lo, float* filter_hi){
+        __global__ void w_kernel_forward1(float* input, float* tmp_a1, float* tmp_a2, const float* __restrict__ filter_lo, const float* __restrict__ filter_hi){
             // params:
             // float* input: input image of shape (M, N)
             // float* tmp_a1: subband 1 subject to second forward pass
@@ -43,7 +43,6 @@ class DWT_optimized_shared_mem:
             int Col_o = threadIdx.x + blockIdx.x*O_TILE_WIDTH;
             int Col_i = threadIdx.x + blockIdx.x*blockDim.x - (maskwidth - 2) * (1 + blockIdx.x);
 
-            
             // Define the shared memory variable
             __shared__ float ds_in [2 * (O_TILE_WIDTH - 1) + maskwidth][2 * (O_TILE_WIDTH - 1) + maskwidth];
             
@@ -84,7 +83,7 @@ class DWT_optimized_shared_mem:
         # Grid size should be (ceil((N + maskwidth - 1)/2), ceil((M + maskwidth - 1)/2)) for input image shape (M, N)
         # to avoid wasting threads
         self.dwt_forward2_opt = """
-        __global__ void w_kernel_forward2(float* tmp_a1, float* tmp_a2, float* c_a, float* c_h, float* c_v, float* c_d, float* filter_lo, float* filter_hi){
+        __global__ void w_kernel_forward2(float* tmp_a1, float* tmp_a2, float* c_a, float* c_h, float* c_v, float* c_d, const float* __restrict__ filter_lo, const float* __restrict__ filter_hi){
 
             // params:
             // float* tmp_a1: subband 1 subject to second forward pass
