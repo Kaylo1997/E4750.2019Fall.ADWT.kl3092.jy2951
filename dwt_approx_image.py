@@ -8,12 +8,25 @@ import scipy.misc as misc
 
 dirpath = os.getcwd()
 inpath = os.path.join(dirpath, 'Image')
-f_img = 'test_gray.png'
+f_img = 'test.png'
+f_gray = 'test_gray.png'
 f_out = 'test_gray_approx.png'
 
 picpath = os.path.join(inpath, f_img)
+graypath = os.path.join(inpath, f_gray)
 outpath = os.path.join(inpath, f_out)
-gray_img = misc.imread(picpath, mode='F').astype(np.float32)
+
+color_img = mpimg.imread(picpath).astype(np.float32)
+
+def rgb2gray(rgb):
+
+    r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
+    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
+
+    return gray
+
+gray_img = rgb2gray(color_img)
+plt.imsave(str(graypath), gray_img, cmap='gray')
 
 wav = gen_wavelet()
 cA, cH, cV, cD, _ = run_DWT(gray_img, wav, False, mode='zero')
@@ -23,6 +36,5 @@ cV_empty = np.zeros(cV.shape)
 cD_empty = np.zeros(cD.shape)
 
 approx_img = run_iDWT(wav, cA, cH_empty, cV_empty, cD_empty, mode='zero')
-approx_img = approx_img * 1.1
 plt.imsave(str(outpath), approx_img, cmap='gray')
 print('nothing')
