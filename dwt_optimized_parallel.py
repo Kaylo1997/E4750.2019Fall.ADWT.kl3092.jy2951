@@ -88,7 +88,7 @@ class DWT_optimized:
         }
         """
     
-    def dwt_gpu_optimized(self, h_input, filters):
+    def dwt_gpu_optimized(self, h_input, filters, BLOCK_WIDTH):
         
         # Obtain the shape of the input matrix
         dim_M = h_input.shape[0]
@@ -109,9 +109,6 @@ class DWT_optimized:
         # Compute the size of the output of the wavelet transform
         dim_R = int(np.ceil(((dim_M + maskwidth - 1)/2)))
         dim_C = int(np.ceil(((dim_N + maskwidth - 1)/2)))
-        
-        # Set the width of the block
-        BLOCK_WIDTH = 16
 
         # Calculate the number of blocks
         # Note that final output has shape (M, N)

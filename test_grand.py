@@ -109,6 +109,9 @@ temp_naive = 0 #temp execution time variables before getting the average executi
 temp_o = 0
 times_opt = []
 
+# define the block width to be used
+BLOCK_WIDTH = 32
+
 #for each image in our grand list
 for i in range(750):
     
@@ -147,15 +150,15 @@ for i in range(750):
 
     #implement naive separable version of 2D dwt
     dwt = DWT_naive()
-    rh_cA, rh_cH, rh_cV, rh_cD, kernel_time_r = dwt.dwt_gpu_naive(rsig, filters)
-    gh_cA, gh_cH, gh_cV, gh_cD, kernel_time_g = dwt.dwt_gpu_naive(gsig, filters)
-    bh_cA, bh_cH, bh_cV, bh_cD, kernel_time_b = dwt.dwt_gpu_naive(bsig, filters)
+    rh_cA, rh_cH, rh_cV, rh_cD, kernel_time_r = dwt.dwt_gpu_naive(rsig, filters, BLOCK_WIDTH)
+    gh_cA, gh_cH, gh_cV, gh_cD, kernel_time_g = dwt.dwt_gpu_naive(gsig, filters, BLOCK_WIDTH)
+    bh_cA, bh_cH, bh_cV, bh_cD, kernel_time_b = dwt.dwt_gpu_naive(bsig, filters, BLOCK_WIDTH)
 
     #implement optimized separable version of 2D dwt
     dwt_opt = DWT_optimized()
-    rh_cAo, rh_cHo, rh_cVo, rh_cDo, kernel_time_or = dwt_opt.dwt_gpu_optimized(rsig,filters)
-    gh_cAo, gh_cHo, gh_cVo, gh_cDo, kernel_time_og = dwt_opt.dwt_gpu_optimized(gsig,filters)
-    bh_cAo, bh_cHo, bh_cVo, bh_cDo, kernel_time_ob = dwt_opt.dwt_gpu_optimized(bsig,filters)
+    rh_cAo, rh_cHo, rh_cVo, rh_cDo, kernel_time_or = dwt_opt.dwt_gpu_optimized(rsig,filters, BLOCK_WIDTH)
+    gh_cAo, gh_cHo, gh_cVo, gh_cDo, kernel_time_og = dwt_opt.dwt_gpu_optimized(gsig,filters, BLOCK_WIDTH)
+    bh_cAo, bh_cHo, bh_cVo, bh_cDo, kernel_time_ob = dwt_opt.dwt_gpu_optimized(bsig,filters, BLOCK_WIDTH)
     
     #concatenate combine kernel execution times to get a final average value for execution time across 2D dwts
     kernel_time = kernel_time_r + kernel_time_g + kernel_time_b
