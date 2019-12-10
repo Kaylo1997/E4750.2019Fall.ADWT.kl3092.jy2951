@@ -2,11 +2,12 @@
 Accelerated Discrete Wavelet Transform Project for EECS4750 Heterogeneous Computing
 
 TO DO:
-1. Debug Parallel optimized Implementation
-2. Test for equality for entire image set
-3. Potentially add square decomposition
 
-Later TO DO: (~Tuesday or Wednesday)
-1. Prepare Presentation
-2. Clean code / readme
-3. Write report
+1. Write report up until Results (Kaylo)
+2. Write report results and abstract (Both)
+3. Clean code (Both)
+4. Finalize test scripts (data set - Kaylo, random signals - Desmond)
+5. Readme (Both)
+
+Optional TO DO:
+1. Optimize nonseparable implementation (Kaylo)
