@@ -5,8 +5,7 @@ TO DO:
 
 1. Write report up until Results (Kaylo)
 2. Write report results and abstract (Both)
-3. Clean code (Both)
-4. Finalize test scripts (random signals - Desmond)
+3. Clean code + generate any lingering results (Both)
 5. Readme (Both)
 
 Optional TO DO:
