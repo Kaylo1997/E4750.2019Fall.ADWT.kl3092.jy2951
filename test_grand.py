@@ -14,6 +14,7 @@ import os
 import matplotlib.pyplot as plt
 import os, os.path
 import matplotlib.image as mpimg
+import pywt.data
 from PIL import Image
 
 # Data set specifications (750 images total):
@@ -129,10 +130,10 @@ temp_til = 0
 BLOCK_WIDTH = 32
 
 #for each image in our grand list
-for i in range(101):
+for i in range(750):
     
     #decompose image into RGB
-    rgb_cpu = imgs[i]/255
+    rgb_cpu = imgs[i].astype(np.float32)/255
     rsig = np.ascontiguousarray(rgb_cpu[:,:,0], dtype=np.float32)
     gsig = np.ascontiguousarray(rgb_cpu[:,:,1], dtype=np.float32)
     bsig = np.ascontiguousarray(rgb_cpu[:,:,2], dtype=np.float32)
@@ -256,38 +257,26 @@ for i in range(101):
     print('Naive time: {}'.format(kernel_time_r + kernel_time_g + kernel_time_b))
     print('nonseparable time: {}'.format(kernel_time_or + kernel_time_og + kernel_time_ob))
     print('Tiled time: {}'.format(kernel_time_tr + kernel_time_tg + kernel_time_tb))
-
-#save original, approximation, horizontal, vertical, and diagonal components of the first image in the series
-w, h = imgs[101].shape[0], imgs[101].shape[1]
-w_t, h_t = rcA.shape[0], rcA.shape[1] #define h w
-dataO = np.zeros((h, w, 3), dtype=np.float32)
-dataA = np.zeros((h_t, w_t, 3), dtype=np.float32)
-dataH = np.zeros((h_t, w_t, 3), dtype=np.float32)
-dataV = np.zeros((h_t, w_t, 3), dtype=np.float32)
-dataD = np.zeros((h_t, w_t, 3), dtype=np.float32) #initialize image arrays
-dataO = imgs[101]
-dataA[:,:,0] = rcA*255
-dataA[:,:,1] = gcA*255
-dataA[:,:,2] = bcA*255
-dataH[:,:,0] = rcH*255
-dataH[:,:,1] = gcH*255
-dataH[:,:,2] = bcH*255
-dataV[:,:,0] = rcV*255
-dataV[:,:,1] = gcV*255
-dataV[:,:,2] = bcV*255
-dataD[:,:,0] = rcD*255
-dataD[:,:,1] = gcD*255
-dataD[:,:,2] = bcD*255 #load image arrays
-imgO = Image.fromarray(dataO, 'RGB')
-imgA = Image.fromarray(dataA, 'RGB')
-imgH = Image.fromarray(dataH, 'RGB')
-imgV = Image.fromarray(dataV, 'RGB')
-imgD = Image.fromarray(dataD, 'RGB') #convert arrays to images
-imgO.save('Original_Image.png') 
-imgA.save('Approximation_Image.png') 
-imgH.save('Horizontal_Image.png') 
-imgV.save('Vertical_Image.png') 
-imgD.save('Diagonal_Image.png') 
+    
+    #output images to display
+    if i == 99:
+        
+        #run the pywt inverse DWT
+        cA_empty = np.zeros(rcA.shape)
+        cH_empty = np.zeros(rcH.shape)
+        cV_empty = np.zeros(rcV.shape)
+        cD_empty = np.zeros(rcD.shape)
+        approx_imgr = run_iDWT(wav, rcA, cH_empty, cV_empty, cD_empty, mode='zero')
+        approx_imgg = run_iDWT(wav, gcA, cH_empty, cV_empty, cD_empty, mode='zero')
+        approx_imgb = run_iDWT(wav, bcA, cH_empty, cV_empty, cD_empty, mode='zero')
+        
+        #convert arrays to images and save
+        approx_img = np.zeros((approx_imgr.shape[0],approx_imgr.shape[1],3),dtype=np.float32)
+        approx_img[:,:,0] = approx_imgr
+        approx_img[:,:,1] = approx_imgg
+        approx_img[:,:,2] = approx_imgb
+        plt.imsave("approximation_image.png",approx_img)
+        plt.imsave("original_image.png",imgs[i])
     
 #save timing results
 plt.figure()
