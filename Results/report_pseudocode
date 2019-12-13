@@ -47,5 +47,67 @@ __global__ void w_kernel_forward2(tmp_a1, tmp_a2, c_a, c_h, c_v, c_d, filter_lo,
 """
 
 //Nonseparable Implmentation
+self.dwt_forward_opt = """
+__global__ void w_kern_forward(input, c_a, c_h, c_v, c_d, LL, LH, HL, HH, maskwidth, H, W) {  
+    int Col = threadIdx.x + blockIdx.x*blockDim.x;
+    int Row = threadIdx.y + blockIdx.y*blockDim.y; //define row and column indicies
+    int W_half = (W + maskwidth - 1)/2;
+    int H_half = (H + maskwidth - 1)/2; // Obtain half of the width and height
+    //boundary conditions for entire output array
+    if (Row < H_half && Col < W_half) {
+        c = maskwidth/2 + 3; //get center for CDF 9/7 kernel
+        float res_a = 0, res_h = 0, res_v = 0, res_d = 0; val = 0; // perform zero padding
+        //convolve along the horizontal AND vertical indexes with 2D filter
+        for (int y = 0; y < maskwidth; y++) {
+            int ty = Row * 2 - c + y; //get vertical index for input image
+            for (int x = 0; x < maskwidth; x++) {
+                int tx = Col*2 - c + x; //get horizonal index for input image
+                int keridx = (maskwidth-1-y)*maskwidth + (maskwidth-1 - x);  //get kernel index
+                // Apply the zero-padding via the conditional
+                if ((ty > -1) && (ty < H) && (tx > -1) && (tx < W)){
+                    val = input[ty*W + tx];
+                    res_a += val * LL[keridx];
+                    res_h += val * LH[keridx];
+                    res_v += val * HL[keridx];
+                    res_d += val * HH[keridx]; //perform convolution with filters and input image
+                }
+            }
+        }
+        c_a[Row* W_half + Col] = res_a;
+        c_h[Row* W_half + Col] = res_h;
+        c_v[Row* W_half + Col] = res_v;
+        c_d[Row* W_half + Col] = res_d; //output coeefficients
+    }
+}
+"""
 
-//Optimized Implementation
+//Optimized Kernel 1 (PSEUDOCODE ONLY FOR SNIPPET WITHIN KERNEL, SAME INPUTS AND SET UP AS NAIVE)
+int Row = threadIdx.y + blockIdx.y*blockDim.y;
+int Col_o = threadIdx.x + blockIdx.x*O_TILE_WIDTH;
+int Col_i = threadIdx.x + blockIdx.x*blockDim.x - (maskwidth - 2) * (1 + blockIdx.x); //kernel indexes
+// Define the shared memory variable
+__shared__ float ds_in [2 * (O_TILE_WIDTH - 1) + maskwidth][2 * (O_TILE_WIDTH - 1) + maskwidth];
+if ((Col_i > -1) && (Col_i < W)){ //boundary conditions
+    ds_in[ty][tx] = input[Row * W + Col_i];}
+else{
+    ds_in[ty][tx] = 0.0f;}
+__syncthreads(); // Wait for all the threads to load data into shared memory
+// Perform Convolution ...
+
+//Optimized Kernel 2 (PSEUDOCODE ONLY FOR SNIPPET WITHIN KERNEL, SAME INPUTS AND SET UP AS NAIVE)
+int Row_o = threadIdx.y + blockIdx.y*O_TILE_WIDTH;
+int Row_i = threadIdx.y + blockIdx.y*blockDim.y - (maskwidth - 2) * (1 + blockIdx.y);
+int Col = threadIdx.x + blockIdx.x*blockDim.x; //kernel indexes
+int H_half = (H + maskwidth - 1)/2;
+int W_half = (W + maskwidth - 1)/2;
+// Define the shared memory variable
+__shared__ float ds_tmp_a1 [2 * (O_TILE_WIDTH - 1) + maskwidth][2 * (O_TILE_WIDTH - 1) + maskwidth];
+__shared__ float ds_tmp_a2 [2 * (O_TILE_WIDTH - 1) + maskwidth][2 * (O_TILE_WIDTH - 1) + maskwidth];
+if ((Row_i > -1) && (Row_i < H)){ //boundary conditions
+    ds_tmp_a1[ty][tx] = tmp_a1[Row_i * W_half + Col];
+    ds_tmp_a2[ty][tx] = tmp_a2[Row_i * W_half + Col];}
+else{
+    ds_tmp_a1[ty][tx] = 0.0f;
+    ds_tmp_a2[ty][tx] = 0.0f;}
+__syncthreads(); // Wait for all the threads to load data into shared memory
+// Perform Convolution ...
