@@ -1,128 +1,47 @@
-HOW MUCH DO THEY WANT HERE??
-
-
 //Separable Kernel
-# Grid size should be (ceil((N + maskwidth - 1)/2), M) for input image shape (M, N) to avoid wasting threads
-# and to make indexing work. Params: input: input image of shape (M, N). tmp_a1: empty subband 1 subject to second convolution
-# tmp_a2: empty subband 2 subject to second convolution. filter_lo: LPF coefficients for approximation of shape (maskwidth,).
-# filter_hi: HPF coefficients for detail of shape (maskwidth,).
-# maskwidth: length of the filter (default is 10 for CDF9/7), H: number of rows for input (height) (equals to M)
-
-
 self.dwt_forward1 = """
 __global__ void w_kernel_forward1(input, tmp_a1, tmp_a2, filter_lo, filter_hi, maskwidth, H, W){
+    //get row column index
     int Row = threadIdx.y + blockIdx.y*blockDim.y;
     int Col = threadIdx.x + blockIdx.x*blockDim.x;
-
-    // Obtain the dimension of the problem
-    // size of the mask, width and height of input image
-    // 
-    // W: number of columns for input (width) (equals to N)
-    int maskwidth = %(M)s; int H = %(H)s; int W = %(W)s;
-    
     //obtain halfwidth for vertical downsampling
     int W_half = (W + maskwidth - 1)/2;
-
     // Perform vertical downsampling by half (separable method for DWT)
-    // Output is of shape (M, ceil((N + maskwidth - 1)/2))
     if (Row < H && Col < W_half){
-    
-        //define c as center of filter (maskwidth/2)+3 for CDF 9/7 even kernel
-        c = maskwidth/2+3
-        
-        // 1D Convolution with zeropadding boundary constraints
-        // Convolution is performed along each row
-        float res_tmp_a1 = 0, res_tmp_a2 = 0;
-
-        // Note the downsampling via multiplication with 2
-        int N_start_col = Col * 2 - c;
-
-        for (int j = 0; j < maskwidth; j++) {
-            int curCol = N_start_col + j;
-            int kerIdx = maskwidth - j - 1;
-
-            // Apply the zero-padding via the conditional
-            if ((curCol > -1) && (curCol < W)){
+        c = maskwidth/2+3 //define c as center of filter (maskwidth/2)+3 for CDF 9/7 even kernel
+        float res_tmp_a1 = 0, res_tmp_a2 = 0; // 1D Convolution with zeropadding boundary constraints
+        int N_start_col = Col * 2 - c; // Note the downsampling via multiplication with 2
+        for (int j = 0; j < maskwidth; j++) { //1D convolution based on accumulation of sums
+            int curCol = N_start_col + j; //get start column
+            int kerIdx = maskwidth - j - 1; //get current mask index
+            if ((curCol > -1) && (curCol < W)){  // Apply the zero-padding via the conditional
                 // Perform the convolution with both filters
                 res_tmp_a1 += input[Row * W + curCol] * filter_lo[kerIdx];
-                res_tmp_a2 += input[Row * W + curCol] * filter_hi[kerIdx];
+                res_tmp_a2 += input[Row * W + curCol] * filter_hi[kerIdx]; //perform convolution
             }
         }
-
         tmp_a1[Row * W_half + Col] = res_tmp_a1;
-        tmp_a2[Row * W_half + Col] = res_tmp_a2;
+        tmp_a2[Row * W_half + Col] = res_tmp_a2; //output convolution results
     }
 }
 """
-# Grid size should be (ceil((N + maskwidth - 1)/2), ceil((M + maskwidth - 1)/2)) for input image shape (M, N)
-# to avoid wasting threads
 self.dwt_forward2 = """
-__global__ void w_kernel_forward2(float* tmp_a1, float* tmp_a2, float* c_a, float* c_h, float* c_v, float* c_d, float* filter_lo, float* filter_hi){
-    // params:
-    // float* tmp_a1: subband 1 subject to second forward pass
-    // float* tmp_a2: subband 2 subject to second forward pass
-    // float* c_a: approximation coefficients, shape (ceil((M + maskwidth - 1)/2), ceil((N + maskwidth - 1)/2))
-    // float* c_h: horizontal detail coefficients, shape (ceil((M + maskwidth - 1)/2), ceil((N + maskwidth - 1)/2))
-    // float* c_v: vertical detail coefficients, shape (ceil((M + maskwidth - 1)/2), ceil((N + maskwidth - 1)/2))
-    // float* c_d: diagonal detail coefficients, shape (ceil((M + maskwidth - 1)/2), ceil((N + maskwidth - 1)/2))
-    // float* filter_lo: LPF coefficients for approximation of shape (hlen,)
-    // float* filter_hi: HPF coefficients for detail of shape (hlen,)
+__global__ void w_kernel_forward2(tmp_a1, tmp_a2, c_a, c_h, c_v, c_d, filter_lo, filter_hi, maswidth, H, W){
     int Row = threadIdx.y + blockIdx.y*blockDim.y;
     int Col = threadIdx.x + blockIdx.x*blockDim.x;
-    // Obtain the dimension of the problem
-    // size of the mask, width and height of input image
-    // int maskwidth: length of the filter (default is 10 for CDF9/7)
-    // int H: number of rows for input (height) (equals to M)
-    // int W: number of columns for input (width) (equals to N)
-    int maskwidth = %(M)s;
-    int H = %(H)s;
-    int W = %(W)s;
-    // Obtain half of the width
-    // int flag_H_odd = (H & 1);
-    // int H_half = (H + flag_H_odd)/2;
+    // Obtain half of the width and height
     int H_half = (H + maskwidth - 1)/2;
     int W_half = (W + maskwidth - 1)/2;
     // Perform horizontal downsampling by half (separable method for DWT)
-    // Output is of shape (ceil((M + maskwidth - 1)/2), ceil((N + maskwidth - 1)/2))
     if (Row < H_half && Col < W_half){
-        // c: center of filter
-        // hL: number of filter elements to the left of center
-        // hR: number of filter elements to the right of center
-        int c;
-
-        if (maskwidth & 1) { 
-        // odd kernel size
-            c = maskwidth/2;
-            // hL = c;
-            // hR = c;
-        }
-        else { 
-        // even kernel size : center is shifted to the left
-            c = maskwidth/2 + 3;
-            // hL = c;
-            // hR = c + 1;
-        }
-        // 1D Convolution with zeropadding boundary constraints
-        // Convolution is performed along each row
-        float res_a = 0, res_h = 0, res_v = 0, res_d = 0;
-        // Note the downsampling via multiplication with 2
-        int N_start_row = Row * 2 - c;
-        for (int i = 0; i < maskwidth; i++) {
-            int curRow = N_start_row + i;
-            int kerIdx = maskwidth - i - 1;
-            // Apply the zero-padding via the conditional
-            if ((curRow > -1) && (curRow < H)){
-                // Perform the convolution with both filters
-                res_a += tmp_a1[curRow * W_half + Col] * filter_lo[kerIdx];
-                res_h += tmp_a1[curRow * W_half + Col] * filter_hi[kerIdx];
-                res_v += tmp_a2[curRow * W_half + Col] * filter_lo[kerIdx];
-                res_d += tmp_a2[curRow * W_half + Col] * filter_hi[kerIdx];
-            }
-        }
+        // Apply convolution in the exact same fashion as forward 1, except convolve both inputs with both filters
+        // and along the rows of the DWT
+        ...
+        //
         c_a[Row * W_half + Col] = res_a;
         c_h[Row * W_half + Col] = res_h;
         c_v[Row * W_half + Col] = res_v;
-        c_d[Row * W_half + Col] = res_d;
+        c_d[Row * W_half + Col] = res_d; //output results
     }
 }
 """
