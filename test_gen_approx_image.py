@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import os
 from dwt_serial import *
-import scipy.misc as misc
 
 dirpath = os.getcwd()
 inpath = os.path.join(dirpath, 'ApproximateImage')
