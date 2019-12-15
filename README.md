@@ -85,7 +85,8 @@ and stores the image in the `Results` folder.
 
 The script `benchmark_actual_image.py` takes in images stored in the `images` folder, which contains images of various
 sizes and different shapes, and runs all four DWT computing scripts on images of each shape separately to calculate and 
-compare the cumulative time taken for each script to execute. 
+compare the cumulative time taken for each script to execute. It then plots the cumulative time taken and saves it in
+the `Results` folder.
 
 ## License
 MIT License

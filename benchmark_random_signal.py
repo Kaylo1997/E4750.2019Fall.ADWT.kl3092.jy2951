@@ -7,6 +7,8 @@ from dwt_nonseparable_parallel import *
 import os
 import matplotlib.pyplot as plt
 
+import matplotlib as mpl
+mpl.use('agg')
 """
 Parameters to experiment with
 """

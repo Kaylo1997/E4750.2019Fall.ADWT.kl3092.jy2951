@@ -276,8 +276,8 @@ for i in range(750):
         approx_img[:,:,0] = approx_imgr
         approx_img[:,:,1] = approx_imgg
         approx_img[:,:,2] = approx_imgb
-        plt.imsave("approximation_image.png",approx_img)
-        plt.imsave("original_image.png",imgs[i])
+        plt.imsave("Results/approximation_image.png",approx_img)
+        plt.imsave("Results/original_image.png",imgs[i])
     
 #save timing results
 plt.figure()
