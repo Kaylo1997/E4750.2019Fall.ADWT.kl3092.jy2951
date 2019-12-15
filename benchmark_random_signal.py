@@ -1,19 +1,22 @@
 import numpy as np
 import pywt
 from dwt_serial import *
-from dwt_naive_parallel import *
-from dwt_shared_mem import *
-from dwt_optimized_parallel import *
+from dwt_naive_separable_parallel import *
+from dwt_tiled_separable_parallel import *
+from dwt_nonseparable_parallel import *
 import os
 import matplotlib.pyplot as plt
 
 """
 Parameters to experiment with
 """
+# Feel free to change these
 BLOCK_WIDTH = 32
 M = 100
 N = 50
 L_max = 50
+
+# Setup the name of the output images
 if M == N:
     shape = 'Square'
     shape_caps = 'SQUARE'
@@ -52,10 +55,13 @@ cdf97_syn_hi = factor * np.array([0, 0.026748757411, 0.016864118443, -0.07822326
                                   0.602949018236, -0.266864118443, -0.078223266529, 0.016864118443,
                                   0.026748757411])
 
+# Stack the filters into a numpy array of dimension (4, 10)
 filters = np.vstack((cdf97_an_lo, cdf97_an_hi, cdf97_syn_lo, cdf97_syn_hi)).astype(np.float32)
-dwt_naive = DWT_naive()
-dwt_tiled = DWT_optimized_shared_mem()
-dwt_nonseparable = DWT_optimized()
+
+# Obtain the different kernels
+dwt_naive = DWT_naive_separable()
+dwt_tiled = DWT_tiled_separable()
+dwt_nonseparable = DWT_nonseparable()
 
 # Path setup
 dirpath = os.getcwd()
@@ -72,23 +78,26 @@ vec_kernel_time = []
 vec_kernel_time_tiled = []
 vec_kernel_time_nonseparable = []
 
+# Loop through the iterations
 for L in np.arange(1, L_max + 1, 1):
     signal_i = np.random.rand(L * M, L * N).astype(np.float32)
 
     cA_i, cH_i, cV_i, cD_i, serial_time_i = run_DWT(signal_i, wav, False, mode='zero')
-    h_cA_i, h_cH_i, h_cV_i, h_cD_i, kernel_time_i = dwt_naive.dwt_gpu_naive(signal_i, filters, BLOCK_WIDTH)
-    h_cA_tiled_i, h_cH_tiled_i, h_cV_tiled_i, h_cD_tiled_i, kernel_time_tiled_i = dwt_tiled.dwt_gpu_optimized(signal_i, filters,
-                                                                                                    BLOCK_WIDTH)
-    h_cAo_i, h_cHo_i, h_cVo_i, h_cDo_i, kernel_time_o_i = dwt_nonseparable.dwt_gpu_optimized(signal_i, filters, BLOCK_WIDTH)
+    h_cA_i, h_cH_i, h_cV_i, h_cD_i, kernel_time_i = dwt_naive.dwt_gpu_naive_separable(signal_i, filters, BLOCK_WIDTH)
+    h_cA_tiled_i, h_cH_tiled_i, h_cV_tiled_i, h_cD_tiled_i, kernel_time_tiled_i = dwt_tiled.dwt_gpu_tiled_separable(signal_i, filters,
+                                                                                                                    BLOCK_WIDTH)
+    h_cAo_i, h_cHo_i, h_cVo_i, h_cDo_i, kernel_time_o_i = dwt_nonseparable.dwt_gpu_nonseparable(signal_i, filters, BLOCK_WIDTH)
 
     print('\n\n\n###########################################################################')
-    print('##                            Iteration {}                               ##'.format(L + 1))
+    print('##                            Iteration {}                               ##'.format(L))
     print('###########################################################################\n')
 
     print('naive same as serial c_A: {}'.format(np.allclose(cA_i, h_cA_i, atol=5e-7)))
     print('naive same as serial c_H: {}'.format(np.allclose(cH_i, h_cH_i, atol=5e-7)))
     print('naive same as serial c_V: {}'.format(np.allclose(cV_i, h_cV_i, atol=5e-7)))
     print('naive same as serial c_D: {}'.format(np.allclose(cD_i, h_cD_i, atol=5e-7)))
+
+    # Test for equality and throw error if not equal
     if not np.allclose(cA_i, h_cA_i, atol=5e-7) and np.allclose(cH_i, h_cH_i, atol=5e-7) \
             and np.allclose(cV_i, h_cV_i, atol=5e-7) and np.allclose(cD_i, h_cD_i, atol=5e-7):
         raise Exception('Naive parallel outputs not same as serial')
@@ -97,14 +106,20 @@ for L in np.arange(1, L_max + 1, 1):
     print('tiled same as serial c_H: {}'.format(np.allclose(cH_i, h_cH_tiled_i, atol=5e-7)))
     print('tiled same as serial c_V: {}'.format(np.allclose(cV_i, h_cV_tiled_i, atol=5e-7)))
     print('tiled same as serial c_D: {}'.format(np.allclose(cD_i, h_cD_tiled_i, atol=5e-7)))
+
+    # Test for equality and throw error if not equal
     if not np.allclose(cA_i, h_cA_tiled_i, atol=5e-7) and np.allclose(cH_i, h_cH_tiled_i, atol=5e-7) \
             and np.allclose(cV_i, h_cV_tiled_i, atol=5e-7) and np.allclose(cD_i, h_cD_tiled_i, atol=5e-7):
         raise Exception('Tiled parallel outputs not same as serial')
 
-    print('\nseparable same as serial c_A: {}'.format(np.allclose(cA_i, h_cAo_i, atol=5e-7)))
+    print('\nNon-separable same as serial c_A: {}'.format(np.allclose(cA_i, h_cAo_i, atol=5e-7)))
     print('Non-separable same as serial c_H: {}'.format(np.allclose(cH_i, h_cHo_i, atol=5e-7)))
     print('Non-separable same as serial c_V: {}'.format(np.allclose(cV_i, h_cVo_i, atol=5e-7)))
     print('Non-separable same as serial c_D: {}'.format(np.allclose(cD_i, h_cDo_i, atol=5e-7)))
+
+    if not np.allclose(cA_i, h_cAo_i, atol=5e-7) and np.allclose(cH_i, h_cHo_i, atol=5e-7) \
+            and np.allclose(cV_i, h_cVo_i, atol=5e-7) and np.allclose(cD_i, h_cDo_i, atol=5e-7):
+        raise Exception('Tiled parallel outputs not same as serial')
 
     print('\nSerial time: {}'.format(serial_time_i))
     print('Parallel time: {}'.format(kernel_time_i))
@@ -116,6 +131,7 @@ for L in np.arange(1, L_max + 1, 1):
     vec_kernel_time_tiled.append(kernel_time_tiled_i)
     vec_kernel_time_nonseparable.append(kernel_time_o_i)
 
+# Plotting and saving the figures
 plt.figure()
 n_iter = np.arange(1, L_max + 1, 1)
 plt.title('Serial vs Parallel\nBLOCK WIDTH: {}, BASE SIZE: ({},{}), {} MATRICES'.format(BLOCK_WIDTH, M, N, shape_caps))

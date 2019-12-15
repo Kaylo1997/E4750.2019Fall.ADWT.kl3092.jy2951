@@ -26,17 +26,30 @@ def gen_wavelet():
                                       0.602949018236, -0.266864118443, -0.078223266529, 0.016864118443,
                                       0.026748757411])
 
+    # Create the pywavelets object using the filter coefficients for CDF9/7 filters defined above
     cdf97 = pywt.Wavelet('cdf97', [cdf97_an_lo, cdf97_an_hi, cdf97_syn_lo, cdf97_syn_hi])
 
-    wav = cdf97
-
-    return wav
+    return cdf97
 
 
-def run_DWT(signal, wav, flag_print, mode='zero'):
+def run_DWT(signal, wav, flag_print=0, mode='zero'):
+    """
+    Serial implementation of the 2D DWT that also returns the runtime of the program
+
+    :param: signal: input signal to perform 2D DWT
+    :param: wav: pywavelet object defined before
+    :param: flag_print: whether to print the coefficients or not
+    :param: mode: the padding scheme applied to the input (only supports zero-padding)
+
+    :return: cA, cH, cV, cD: 2D DWT coefficients
+    :return: time_diff: runtime for the serial program
+    """
+
+    # Call the pywavelets 2D DWT function using the pywavelets function
     tic = time.time()
     coeffs = pywt.dwt2(signal, wav, mode)
     toc = time.time()
+
     cA, (cH, cV, cD) = coeffs
     cA = cA.astype(np.float32)
     cH = cH.astype(np.float32)
@@ -50,7 +63,17 @@ def run_DWT(signal, wav, flag_print, mode='zero'):
     return cA, cH, cV, cD, time_diff
 
 
-def run_iDWT(wav, cA, cH, cV, cD, mode):
+def run_iDWT(wav, cA, cH, cV, cD, mode='zero'):
+    """
+    Inverse 2D DWT used for reconstructing the original image
+
+    :param: wav: pywavelet object defined before
+    :params: cA, cH, cV, cD: 2D DWT coefficients found before
+    :param: mode: the padding scheme applied to the input (only supports zero-padding)
+
+    :return: rec_sig: reconstructed image
+
+    """
     coeffs = cA, (cH, cV, cD)
     rec_sig = pywt.idwt2(coeffs, wav, mode)
 
