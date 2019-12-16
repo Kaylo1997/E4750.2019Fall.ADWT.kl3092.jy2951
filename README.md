@@ -88,6 +88,12 @@ sizes and different shapes, and runs all four DWT computing scripts on images of
 compare the cumulative time taken for each script to execute. It then plots the cumulative time taken and saves it in
 the `Results` folder.
 
+### Running the Sript
+To generate the benchmark results, then first move the entire folder into the tesseract server. Then `cd` to the directory
+of the scripts and simply run `sbatch --gres=gpu:1 --time=6 --wrap="nvprof python benchmark_random_signal.py"`
+for the random signal results once you have configured the parameters you wish to test or run `sbatch --gres=gpu:1 --time=6 --wrap="nvprof python benchmark_actual_image.py"`
+if you wish to generate the benchmark results for actual images. 
+
 ## License
 MIT License
 
