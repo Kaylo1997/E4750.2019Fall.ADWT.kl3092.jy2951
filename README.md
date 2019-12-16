@@ -97,7 +97,7 @@ if you wish to generate the benchmark results for actual images.
 ### Profiling
 If you wish to use the NVIDIA visual profiler `nvcc`, then you should first `cd` to the directory. 
 
-If profiling is desired for the random signal benchmark script, then you can execute `chmod u+x benchmark_random_signal.py` and then execute `sbatch --gres=gpu:1 --time=8 --wrap="nvprof -o benchmark_random_signal-analysis.nvprof ./benchmark_random_signal.py"`. Else, if profiling is desired for the actual image benchmark script, you can execute `chmod u+x benchmark_actual_image.py` and then run the command `sbatch --gres=gpu:1 --time=8 --wrap="nvprof -o benchmark_actual_image-analysis.nvprof ./benchmark_actual_image.py"`.
+If profiling is desired for the random signal benchmark script, then you can execute `chmod u+x benchmark_random_signal.py` and then execute `sbatch --gres=gpu:1 --time=12 --wrap="nvprof -o benchmark_random_signal_analysis.nvprof ./benchmark_random_signal.py"`. Else, if profiling is desired for the actual image benchmark script, you can execute `chmod u+x benchmark_actual_image.py` and then run the command `sbatch --gres=gpu:1 --time=8 --wrap="nvprof -o benchmark_actual_image_analysis.nvprof ./benchmark_actual_image.py"`.
 
 ## License
 MIT License
