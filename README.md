@@ -90,9 +90,14 @@ the `Results` folder.
 
 ### Running the Sript
 To generate the benchmark results, then first move the entire folder into the tesseract server. Then `cd` to the directory
-of the scripts and simply run `sbatch --gres=gpu:1 --time=6 --wrap="nvprof python benchmark_random_signal.py"`
+of the scripts and simply run `sbatch --gres=gpu:1 --time=8 --wrap="nvprof python benchmark_random_signal.py"`
 for the random signal results once you have configured the parameters you wish to test or run `sbatch --gres=gpu:1 --time=6 --wrap="nvprof python benchmark_actual_image.py"`
 if you wish to generate the benchmark results for actual images. 
+
+### Profiling
+If you wish to use the NVIDIA visual profiler `nvcc`, then you should first `cd` to the directory. 
+
+If profiling is desired for the random signal benchmark script, then you can execute `chmod u+x benchmark_random_signal.py` and then execute `sbatch --gres=gpu:1 --time=8 --wrap="nvprof -o benchmark_random_signal-analysis.nvprof ./benchmark_random_signal.py"`. Else, if profiling is desired for the actual image benchmark script, you can execute `chmod u+x benchmark_actual_image.py` and then run the command `sbatch --gres=gpu:1 --time=8 --wrap="nvprof -o benchmark_actual_image-analysis.nvprof ./benchmark_actual_image.py"`.
 
 ## License
 MIT License
