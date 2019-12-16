@@ -1,6 +1,6 @@
 # File to initialize 2D image, pass input image to kernel, and peform timing analyis on output image.
 # Authors. Kaylo Littlejohn and Desmond Yao 2019.
-
+#!/usr/bin/env python
 import numpy as np
 import time
 import math
