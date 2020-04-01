@@ -1,6 +1,6 @@
 import pywt
 import numpy as np
-import time
+import time 
 
 def gen_wavelet():
     # Define the coefficients for the CDF9/7 filters
